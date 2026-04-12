@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --card-bg: #ffffff;
+  --card-border: rgba(0,0,0,0.08);
+  --text: #18181b;
+  --text-secondary: #52525b;
+  --muted: #71717a;
+  --accent: #d97757;
+  --accent-hover: #c4684a;
+  --input-bg: #f4f4f5;
+  --input-border: rgba(0,0,0,0.06);
+  --tag-bg: #dbeafe;
+  --tag-color: #1e40af;
+  --accept-bg: #22c55e;
+  --accept-hover: #16a34a;
+  --divider: rgba(0,0,0,0.06);
+  --supplement-bg: #fffbeb;
+  --supplement-border: #fbbf24;
+  --supplement-btn-bg: #f59e0b;
+  --supplement-btn-hover: #d97706;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --card-bg: #18181b;
+    --card-border: rgba(255,255,255,0.1);
+    --text: #f4f4f5;
+    --text-secondary: #a1a1aa;
+    --muted: #71717a;
+    --input-bg: #27272a;
+    --input-border: rgba(255,255,255,0.06);
+    --tag-bg: #1e3a5f;
+    --tag-color: #93c5fd;
+    --divider: rgba(255,255,255,0.06);
+    --supplement-bg: #292524;
+    --supplement-border: #92400e;
+    --supplement-btn-bg: #b45309;
+    --supplement-btn-hover: #d97706;
+  }
+}
+html, body {
+  width: 100%; height: 100%;
+  background: transparent;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+body {
+  padding: 6px;
+}
+
+.card {
+  height: 100%;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+  padding: 16px 18px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  color: var(--text);
+  animation: slideIn 0.25s ease-out;
+}
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.tag {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 5px;
+  background: var(--tag-bg);
+  color: var(--tag-color);
+}
+.header-hint {
+  font-size: 11px;
+  color: var(--muted);
+  margin-left: auto;
+}
+
+.proposals {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding-right: 4px;
+}
+.proposals::-webkit-scrollbar {
+  width: 6px;
+}
+.proposals::-webkit-scrollbar-thumb {
+  background: rgba(113, 113, 122, 0.45);
+  border-radius: 999px;
+}
+.proposals::-webkit-scrollbar-track {
+  background: transparent;
+}
+.proposal-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 10px 12px;
+  background: var(--input-bg);
+  border-radius: 10px;
+  border: 1.5px solid transparent;
+  transition: border-color 0.15s;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  position: relative;
+}
+.proposal-item:hover {
+  border-color: var(--accent);
+}
+.proposal-item::after {
+  content: "双击采纳";
+  position: absolute;
+  right: 10px;
+  bottom: 6px;
+  font-size: 10px;
+  color: var(--muted);
+  opacity: 0;
+  transition: opacity 0.15s;
+  pointer-events: none;
+}
+.proposal-item:hover::after {
+  opacity: 0.6;
+}
+.proposal-item--flash {
+  animation: flashAccept 0.35s ease-out;
+}
+@keyframes flashAccept {
+  0%   { background: var(--accept-bg); }
+  100% { background: var(--input-bg); }
+}
+.proposal-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.proposal-text {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.45;
+  color: var(--text);
+  word-break: break-word;
+}
+.proposal-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+  padding-top: 1px;
+}
+.pbtn {
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+  font-family: inherit;
+  transition: all 0.12s;
+  white-space: nowrap;
+}
+.pbtn--accept {
+  background: var(--accept-bg);
+  color: #fff;
+}
+.pbtn--accept:hover { background: var(--accept-hover); }
+.pbtn--reject {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--card-border);
+}
+.pbtn--reject:hover {
+  color: #ef4444;
+  border-color: #ef4444;
+}
+.pbtn--supplement {
+  background: var(--supplement-btn-bg);
+  color: #fff;
+}
+.pbtn--supplement:hover {
+  background: var(--supplement-btn-hover);
+}
+
+/* ── 补充输入区域 ── */
+.supplement-area {
+  margin-top: 8px;
+  padding: 10px;
+  background: var(--supplement-bg);
+  border: 1px solid var(--supplement-border);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: expandIn 0.2s ease-out;
+}
+@keyframes expandIn {
+  from { opacity: 0; max-height: 0; margin-top: 0; padding: 0 10px; }
+  to   { opacity: 1; max-height: 200px; margin-top: 8px; padding: 10px; }
+}
+.supplement-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.supplement-input {
+  width: 100%;
+  background: var(--card-bg);
+  border: 1.5px solid var(--input-border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--text);
+  resize: none;
+  outline: none;
+  line-height: 1.4;
+  min-height: 36px;
+  max-height: 80px;
+  overflow-y: auto;
+  transition: border-color 0.15s;
+  -webkit-user-select: text;
+  user-select: text;
+}
+.supplement-input:focus {
+  border-color: var(--supplement-border);
+}
+.supplement-input::placeholder {
+  color: var(--muted);
+}
+.supplement-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+.sbtn {
+  padding: 4px 12px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+  font-family: inherit;
+  transition: all 0.12s;
+}
+.sbtn--confirm {
+  background: var(--supplement-btn-bg);
+  color: #fff;
+}
+.sbtn--confirm:hover { background: var(--supplement-btn-hover); }
+.sbtn--confirm:disabled { opacity: 0.5; cursor: default; }
+.sbtn--cancel {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--card-border);
+}
+.sbtn--cancel:hover { color: var(--text); }
+
+.footer {
+  display: flex;
+  gap: 8px;
+  border-top: 1px solid var(--divider);
+  padding-top: 10px;
+}
+.btn {
+  flex: 1;
+  padding: 7px 0;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+.btn-all {
+  background: var(--accent);
+  color: #fff;
+}
+.btn-all:hover { background: var(--accent-hover); }
+.btn-dismiss {
+  background: transparent;
+  color: var(--muted);
+  border-color: var(--card-border);
+}
+.btn-dismiss:hover { color: var(--text); }
+
+.empty {
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+  padding: 8px 0;
+}
+
+.done-hint {
+  text-align: center;
+  color: var(--accept-bg);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 0;
+  animation: fadeIn 0.2s ease-out;
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+</style>
+</head>
+<body>
+<div class="card" id="card">
+  <div class="header">
+    <span class="tag">Mr. Krabs 建议</span>
+    <span class="header-hint" id="headerHint"></span>
+  </div>
+  <div class="proposals" id="proposalList"></div>
+  <div class="footer" id="footer">
+    <button class="btn btn-all" id="btnAcceptAll">全部采纳</button>
+    <button class="btn btn-dismiss" id="btnDismiss">稍后再说</button>
+  </div>
+</div>
+<script>
+const proposalList = document.getElementById("proposalList");
+const footer = document.getElementById("footer");
+const headerHint = document.getElementById("headerHint");
+
+let proposals = []; // [{line, text}]
+let pendingCount = 0;
+let expandedIndex = -1; // 当前展开补充输入框的建议索引
+
+function escHtml(s) {
+  const d = document.createElement("span");
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function cleanProposalText(raw) {
+  return raw.replace(/^建议[：:]\s*/, "").trim();
+}
+
+function requestResize() {
+  // 通知主进程调整窗口高度以适应内容
+  requestAnimationFrame(() => {
+    const card = document.getElementById("card");
+    const h = card.scrollHeight + 12; // 12 = body padding
+    window.proposalAPI.resize(Math.ceil(h));
+  });
+}
+
+function render() {
+  proposalList.innerHTML = "";
+  pendingCount = 0;
+
+  for (let i = 0; i < proposals.length; i++) {
+    const p = proposals[i];
+    if (p.handled) continue;
+    pendingCount++;
+
+    const item = document.createElement("div");
+    item.className = "proposal-item";
+
+    // 双击整行 → 采纳
+    item.addEventListener("dblclick", (e) => {
+      // 如果双击在 textarea 或 button 上不触发（避免误操作）
+      if (e.target.tagName === "TEXTAREA" || e.target.tagName === "BUTTON") return;
+      if (p.handled) return;
+      item.classList.add("proposal-item--flash");
+      setTimeout(() => {
+        p.handled = true;
+        expandedIndex = -1;
+        window.proposalAPI.accept(p.line);
+        render();
+      }, 200);
+    });
+
+    // 主行：文本 + 按钮
+    const row = document.createElement("div");
+    row.className = "proposal-row";
+
+    const text = document.createElement("div");
+    text.className = "proposal-text";
+    text.textContent = cleanProposalText(p.text);
+
+    const actions = document.createElement("div");
+    actions.className = "proposal-actions";
+
+    const btnY = document.createElement("button");
+    btnY.className = "pbtn pbtn--accept";
+    btnY.textContent = "采纳";
+    btnY.addEventListener("click", () => {
+      p.handled = true;
+      expandedIndex = -1;
+      window.proposalAPI.accept(p.line);
+      render();
+    });
+
+    const btnS = document.createElement("button");
+    btnS.className = "pbtn pbtn--supplement";
+    btnS.textContent = "补充";
+    btnS.addEventListener("click", () => {
+      expandedIndex = expandedIndex === i ? -1 : i;
+      render();
+    });
+
+    const btnN = document.createElement("button");
+    btnN.className = "pbtn pbtn--reject";
+    btnN.textContent = "忽略";
+    btnN.addEventListener("click", () => {
+      p.handled = true;
+      expandedIndex = -1;
+      window.proposalAPI.reject(p.line);
+      render();
+    });
+
+    actions.appendChild(btnY);
+    actions.appendChild(btnS);
+    actions.appendChild(btnN);
+    row.appendChild(text);
+    row.appendChild(actions);
+    item.appendChild(row);
+
+    // 补充输入区域（展开时显示）
+    if (expandedIndex === i) {
+      const area = document.createElement("div");
+      area.className = "supplement-area";
+
+      const label = document.createElement("div");
+      label.className = "supplement-label";
+      label.textContent = "补充你的想法，整合后一起执行：";
+
+      const input = document.createElement("textarea");
+      input.className = "supplement-input";
+      input.placeholder = "修改方向、额外要求、场景补充…";
+      input.rows = 2;
+
+      // 自动调整高度
+      input.addEventListener("input", () => {
+        input.style.height = "auto";
+        input.style.height = Math.min(input.scrollHeight, 80) + "px";
+        confirmBtn.disabled = !input.value.trim();
+        requestResize();
+      });
+
+      const btns = document.createElement("div");
+      btns.className = "supplement-actions";
+
+      const confirmBtn = document.createElement("button");
+      confirmBtn.className = "sbtn sbtn--confirm";
+      confirmBtn.textContent = "补充并采纳";
+      confirmBtn.disabled = true;
+      confirmBtn.addEventListener("click", () => {
+        const val = input.value.trim();
+        if (!val) return;
+        p.handled = true;
+        expandedIndex = -1;
+        window.proposalAPI.supplement(p.line, val);
+        render();
+      });
+
+      const cancelBtn = document.createElement("button");
+      cancelBtn.className = "sbtn sbtn--cancel";
+      cancelBtn.textContent = "取消";
+      cancelBtn.addEventListener("click", () => {
+        expandedIndex = -1;
+        render();
+      });
+
+      btns.appendChild(cancelBtn);
+      btns.appendChild(confirmBtn);
+      area.appendChild(label);
+      area.appendChild(input);
+      area.appendChild(btns);
+      item.appendChild(area);
+
+      // 展开后自动聚焦输入框
+      setTimeout(() => {
+        input.focus();
+        requestResize();
+      }, 50);
+    }
+
+    proposalList.appendChild(item);
+  }
+
+  if (pendingCount === 0 && proposals.length > 0) {
+    proposalList.innerHTML = '<div class="done-hint">已全部处理 ✓</div>';
+    footer.style.display = "none";
+    requestResize();
+    setTimeout(() => window.proposalAPI.dismiss(), 1200);
+    return;
+  }
+
+  if (pendingCount === 0) {
+    proposalList.innerHTML = '<div class="empty">暂无建议</div>';
+    footer.style.display = "none";
+    requestResize();
+    return;
+  }
+
+  footer.style.display = "flex";
+  headerHint.textContent = `${pendingCount} 条建议`;
+  requestResize();
+}
+
+async function init() {
+  const data = await window.proposalAPI.getData();
+  proposals = (data.proposals || []).map(p => ({ ...p, handled: false }));
+  render();
+}
+
+document.getElementById("btnAcceptAll").addEventListener("click", () => {
+  for (const p of proposals) {
+    if (!p.handled) {
+      p.handled = true;
+      window.proposalAPI.accept(p.line);
+    }
+  }
+  expandedIndex = -1;
+  render();
+});
+
+document.getElementById("btnDismiss").addEventListener("click", () => {
+  window.proposalAPI.dismiss();
+});
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") {
+    if (expandedIndex >= 0) {
+      expandedIndex = -1;
+      render();
+    } else {
+      window.proposalAPI.dismiss();
+    }
+  }
+});
+
+init();
+</script>
+</body>
+</html>

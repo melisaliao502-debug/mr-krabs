@@ -1,0 +1,27 @@
+const { contextBridge, ipcRenderer } = require("electron");
+
+contextBridge.exposeInMainWorld("taskAPI", {
+  getTasks: () => ipcRenderer.invoke("task-get-tasks"),
+  getResults: () => ipcRenderer.invoke("task-get-results"),
+  getStatus: () => ipcRenderer.invoke("task-get-status"),
+  triggerProposals: () => ipcRenderer.invoke("task-trigger-proposals"),
+  addTask: (text, section) => ipcRenderer.invoke("task-add", text, section),
+  runNow: () => ipcRenderer.send("task-run-now"),
+  stopQueue: () => ipcRenderer.send("task-stop"),
+  pauseQueue: () => ipcRenderer.send("task-pause"),
+  updateStatus: (lineIndex, newStatus) => ipcRenderer.invoke("task-update-status", lineIndex, newStatus),
+  editTask: (lineIndex, newText) => ipcRenderer.invoke("task-edit", lineIndex, newText),
+  deleteTask: (lineIndex) => ipcRenderer.invoke("task-delete", lineIndex),
+  moveTask: (fromLine, toLine) => ipcRenderer.invoke("task-move", fromLine, toLine),
+  appendToTask: (lineIndex, supplement) => ipcRenderer.invoke("task-append", lineIndex, supplement),
+  createFollowUp: (originalText, prompt) => ipcRenderer.invoke("task-follow-up", originalText, prompt),
+  openFile: (filepath) => ipcRenderer.invoke("task-open-file", filepath),
+  getDeliverables: () => ipcRenderer.invoke("task-get-deliverables"),
+  acceptProposal: (lineIndex) => ipcRenderer.invoke("task-accept-proposal", lineIndex),
+  rejectProposal: (lineIndex) => ipcRenderer.invoke("task-reject-proposal", lineIndex),
+  onRefresh: (cb) => ipcRenderer.on("task-refresh", () => cb()),
+  onStatus: (cb) => ipcRenderer.on("task-status", (_, data) => cb(data)),
+  onLog: (cb) => ipcRenderer.on("task-log", (_, data) => cb(data)),
+  onOutput: (cb) => ipcRenderer.on("task-output", (_, data) => cb(data)),
+  onProposalsDone: (cb) => ipcRenderer.on("task-proposals-done", (_, data) => cb(data)),
+});

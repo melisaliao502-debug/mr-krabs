@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --bg: rgba(24,24,27,0.92);
+  --border: rgba(255,255,255,0.1);
+  --text: #f4f4f5;
+  --muted: #71717a;
+  --accent: #d97757;
+  --input-bg: rgba(255,255,255,0.06);
+}
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: rgba(255,255,255,0.95);
+    --border: rgba(0,0,0,0.08);
+    --text: #18181b;
+    --muted: #a1a1aa;
+    --input-bg: #f4f4f5;
+  }
+}
+html, body {
+  width: 100%; height: 100%;
+  background: transparent;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 6px;
+  padding: 10px 14px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+.icon {
+  font-size: 14px;
+  color: var(--accent);
+  flex-shrink: 0;
+  font-weight: 700;
+}
+input {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  font-size: 14px;
+  color: var(--text);
+  font-family: inherit;
+}
+input::placeholder { color: var(--muted); }
+.hint {
+  font-size: 11px;
+  color: var(--muted);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+</style>
+</head>
+<body>
+<div class="bar">
+  <span class="icon">+</span>
+  <input id="input" placeholder="输入新任务，按 Enter 添加…" autofocus />
+  <span class="hint">Esc 取消</span>
+</div>
+<script>
+const input = document.getElementById("input");
+
+input.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    const text = input.value.trim();
+    if (text) {
+      window.quickTaskAPI.addTask(text);
+    } else {
+      window.quickTaskAPI.close();
+    }
+  }
+  if (e.key === "Escape") {
+    window.quickTaskAPI.close();
+  }
+});
+
+input.focus();
+</script>
+</body>
+</html>

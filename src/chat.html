@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --card-bg: #ffffff;
+  --card-border: rgba(0, 0, 0, 0.08);
+  --card-shadow: 0 4px 16px rgba(0, 0, 0, 0.12), 0 1px 3px rgba(0, 0, 0, 0.08);
+  --card-inset: none;
+  --text-primary: #18181b;
+  --header-color: #374151;
+  --cmd-bg: #f4f4f5;
+  --cmd-border: rgba(0, 0, 0, 0.06);
+  --cmd-color: #374151;
+  --cmd-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.06);
+  --input-focus-border: #d97757;
+  --hint-color: #a1a1aa;
+  --deny-bg: #ffffff;
+  --deny-color: #52525b;
+  --deny-border: #d1d5db;
+  --deny-hover-bg: #f9fafb;
+  --deny-hover-border: #9ca3af;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --card-bg: #18181b;
+    --card-border: rgba(255, 255, 255, 0.1);
+    --card-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+    --card-inset: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    --text-primary: #f4f4f5;
+    --header-color: #e4e4e7;
+    --cmd-bg: #09090b;
+    --cmd-border: rgba(255, 255, 255, 0.06);
+    --cmd-color: #a1a1aa;
+    --cmd-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+    --hint-color: #52525b;
+    --deny-bg: rgba(255, 255, 255, 0.05);
+    --deny-color: #e4e4e7;
+    --deny-border: rgba(255, 255, 255, 0.1);
+    --deny-hover-bg: rgba(255, 255, 255, 0.1);
+    --deny-hover-border: rgba(255, 255, 255, 0.15);
+  }
+}
+
+html, body {
+  width: 100%; height: 100%;
+  margin: 0;
+  background: transparent;
+  overflow: hidden;
+  user-select: none;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+body { padding: 6px; }
+
+.card {
+  position: relative;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 16px;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: var(--card-shadow), var(--card-inset, none);
+  color: var(--text-primary);
+  opacity: 0;
+  transform: translateX(60px);
+  transition: opacity 0.35s ease, transform 0.4s ease;
+  overflow: hidden;
+}
+.card.visible {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.header-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--header-color);
+  letter-spacing: 0.02em;
+}
+.header-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 0.03em;
+  background: #8b7ec7;
+}
+
+.ctx-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ctx-label-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.ctx-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--header-color);
+  letter-spacing: 0.02em;
+}
+.ctx-label-desc {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--hint-color);
+  line-height: 1.35;
+}
+
+.ctx-block {
+  padding: 12px;
+  background: var(--cmd-bg);
+  border: 1px solid var(--cmd-border);
+  border-radius: 10px;
+  font-family: "SF Mono", "ui-monospace", "Menlo", monospace;
+  font-size: 12px;
+  color: var(--cmd-color);
+  line-height: 1.5;
+  min-height: 44px;
+  max-height: 120px;
+  overflow-y: auto;
+  word-break: break-word;
+  box-shadow: var(--cmd-shadow);
+  -webkit-user-select: text;
+  user-select: text;
+  white-space: pre-wrap;
+}
+.ctx-block.ctx-block--empty {
+  color: var(--hint-color);
+  font-family: inherit;
+  font-style: normal;
+}
+.ctx-block::-webkit-scrollbar { width: 6px; }
+.ctx-block::-webkit-scrollbar-track { background: transparent; }
+.ctx-block::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 3px; }
+
+.prompt-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--header-color);
+  margin-top: 2px;
+  letter-spacing: 0.02em;
+}
+
+textarea {
+  width: 100%;
+  background: var(--cmd-bg);
+  border: 1.5px solid var(--cmd-border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--text-primary);
+  resize: none;
+  outline: none;
+  line-height: 1.45;
+  min-height: 38px;
+  max-height: 90px;
+  overflow-y: auto;
+  transition: border-color 0.15s ease;
+  -webkit-user-select: text;
+  user-select: text;
+  box-shadow: var(--cmd-shadow);
+}
+textarea:focus { border-color: var(--input-focus-border); }
+textarea::placeholder { color: var(--hint-color); }
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+.btn {
+  flex: 1;
+  padding: 7px 0;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.2s ease;
+  outline: none;
+}
+.btn:active:not(:disabled) { transform: scale(0.96); }
+
+.btn-send {
+  background: #d97757;
+  color: #fff;
+}
+.btn-send:hover:not(:disabled) { background: #c4684a; }
+
+.btn-task {
+  background: #8b7ec7;
+  color: #fff;
+}
+.btn-task:hover:not(:disabled) { background: #7a6db8; }
+
+.btn-cancel {
+  background: var(--deny-bg);
+  color: var(--deny-color);
+  border: 1px solid var(--deny-border);
+}
+.btn-cancel:hover:not(:disabled) {
+  background: var(--deny-hover-bg);
+  border-color: var(--deny-hover-border);
+}
+
+.hint {
+  font-size: 11px;
+  color: var(--hint-color);
+  text-align: center;
+}
+</style>
+</head>
+<body>
+<div class="card" id="card">
+  <div class="header">
+    <span class="header-title">发到 Claude</span>
+    <span class="header-pill" id="headerPill">—</span>
+  </div>
+
+  <div class="ctx-section" id="ctxSection">
+    <div class="ctx-label-row">
+      <span class="ctx-label">上下文（划词）</span>
+    </div>
+    <div class="ctx-block ctx-block--empty" id="ctxBlock"></div>
+  </div>
+
+  <span class="prompt-label" id="promptLabel">说明 / Prompt（可选）</span>
+  <textarea id="input" placeholder="需要补充的问题或指令写在这里；只有划词、不写也可以直接确认发送。" rows="1"></textarea>
+
+  <div class="actions">
+    <button class="btn btn-send" id="btnSend">确认发送</button>
+    <button class="btn btn-task" id="btnTask">加入任务</button>
+    <button class="btn btn-cancel" id="btnCancel">取消</button>
+  </div>
+</div>
+
+<script>
+const card = document.getElementById("card");
+const input = document.getElementById("input");
+const ctxBlock = document.getElementById("ctxBlock");
+const btnSend = document.getElementById("btnSend");
+const btnTask = document.getElementById("btnTask");
+const btnCancel = document.getElementById("btnCancel");
+
+let contextText = "";
+
+async function init() {
+  const data = await window.chatAPI.getInitData();
+  contextText = (data.context || "").trim();
+
+  const headerPill = document.getElementById("headerPill");
+  if (data.accessibilityWarning) {
+    headerPill.textContent = "⚠ 需要权限";
+    headerPill.style.background = "#e74c3c";
+    ctxBlock.textContent = "划词功能需要「辅助功能」权限。\n\n请前往：系统设置 → 隐私与安全性 → 辅助功能\n找到 Mr. Krabs（或终端应用）并开启权限，然后重试。\n\n你仍然可以在下方直接输入内容发送。";
+    ctxBlock.classList.add("ctx-block--empty");
+  } else if (contextText) {
+    headerPill.textContent = "已带划词";
+    ctxBlock.textContent = contextText;
+    ctxBlock.classList.remove("ctx-block--empty");
+  } else {
+    headerPill.textContent = "未带划词";
+    ctxBlock.textContent = "未读到划词内容：请先在别处划好词，再按 Ctrl+Enter。也可只在下方输入说明后发送。";
+    ctxBlock.classList.add("ctx-block--empty");
+  }
+
+  requestAnimationFrame(() => {
+    const h = card.getBoundingClientRect().height;
+    window.chatAPI.resize(Math.ceil(h) + 12);
+    // Trigger slide-in animation
+    card.classList.add("visible");
+  });
+
+  input.focus();
+}
+
+function doSend() {
+  const prompt = input.value.trim();
+  if (!prompt && !contextText) return;
+  btnSend.textContent = "…";
+  btnSend.disabled = true;
+  btnCancel.disabled = true;
+  let final;
+  if (contextText && prompt) {
+    final = `${contextText}\n\n${prompt}`;
+  } else {
+    final = contextText || prompt;
+  }
+  window.chatAPI.send(final);
+}
+
+input.addEventListener("input", () => {
+  input.style.height = "auto";
+  input.style.height = Math.min(input.scrollHeight, 90) + "px";
+});
+
+input.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    doSend(); // 与「确认发送」相同：合并划词 + 说明
+  }
+});
+
+// Global Escape — works even when textarea is not focused
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") {
+    window.chatAPI.close();
+  }
+});
+
+btnSend.addEventListener("click", doSend);
+btnTask.addEventListener("click", () => {
+  const prompt = input.value.trim();
+  if (!prompt && !contextText) return;
+  let taskText;
+  if (contextText && prompt) {
+    taskText = `${prompt}（上下文：${contextText.slice(0, 200)}${contextText.length > 200 ? "…" : ""})`;
+  } else {
+    taskText = prompt || contextText;
+  }
+  window.chatAPI.addTask(taskText);
+});
+btnCancel.addEventListener("click", () => window.chatAPI.close());
+
+window.chatAPI.onForceClose(() => window.close());
+
+init();
+</script>
+</body>
+</html>

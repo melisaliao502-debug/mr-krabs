@@ -1,0 +1,31 @@
+node_modules/
+dist/
+.env
+__pycache__/
+*.pyc
+.DS_Store
+Thumbs.db
+
+# Claude Code local config
+.claude/
+CLAUDE.md
+
+# Development plans & review notes
+PLAN.md
+PLAN-*.md
+codex-*.md
+CHANGELOG-draft.md
+docs/
+
+# Temp files from testing
+.tmp_*
+*.tmp
+
+# Third-party reference repo
+mr-krabs-tank/
+
+# Debug logs
+logs/
+
+# GIF recording tool (not part of main project)
+scripts/

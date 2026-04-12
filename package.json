@@ -1,0 +1,96 @@
+{
+  "name": "mr-krabs",
+  "version": "0.6.11",
+  "description": "A desktop pet that reacts to your Claude Code sessions in real-time.",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "node launch.js",
+    "build": "electron-builder --win",
+    "build:mac": "electron-builder --mac",
+    "build:all": "electron-builder --win --mac",
+    "test": "node --test test/*.test.js"
+  },
+  "keywords": [
+    "mr-krabs",
+    "desktop-pet",
+    "electron",
+    "claude-code",
+    "ai-agent"
+  ],
+  "author": "melisaliao502-debug",
+  "license": "MIT",
+  "type": "commonjs",
+  "build": {
+    "appId": "com.mrk.mr-krabs",
+    "productName": "Mr. Krabs",
+    "mac": {
+      "icon": "assets/icon.png",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "category": "public.app-category.entertainment",
+      "extendInfo": {
+        "LSUIElement": true
+      }
+    },
+    "win": {
+      "icon": "assets/icon.ico",
+      "signAndEditExecutable": false,
+      "artifactName": "MrKrabs-Setup-${version}.${ext}",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "assets/icon.ico",
+      "uninstallerIcon": "assets/icon.ico",
+      "installerHeaderIcon": "assets/icon.ico"
+    },
+    "files": [
+      "src/**/*",
+      "assets/svg/**/*",
+      "assets/tray-icon*.png",
+      "hooks/**/*",
+      "extensions/**/*",
+      "agents/**/*"
+    ],
+    "asarUnpack": [
+      "hooks/**/*",
+      "extensions/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "assets/icon.ico",
+        "to": "icon.ico"
+      }
+    ],
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "melisaliao502-debug",
+        "repo": "mr-krabs"
+      }
+    ]
+  },
+  "devDependencies": {
+    "electron": "^41.0.2",
+    "electron-builder": "^26.8.1"
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.3",
+    "koffi": "^2.15.2"
+  }
+}

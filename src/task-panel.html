@@ -1,0 +1,1302 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
+<title>Mr. Krabs 任务面板</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg: #fafafa;
+  --card-bg: #ffffff;
+  --card-border: rgba(0, 0, 0, 0.08);
+  --text-primary: #18181b;
+  --text-secondary: #52525b;
+  --text-muted: #a1a1aa;
+  --accent: #d97757;
+  --accent-hover: #c4684a;
+  --tag-done: #22c55e;
+  --tag-running: #3b82f6;
+  --tag-review: #f59e0b;
+  --tag-pending: #a1a1aa;
+  --tag-fail: #ef4444;
+  --input-bg: #f4f4f5;
+  --input-border: rgba(0, 0, 0, 0.06);
+  --divider: rgba(0, 0, 0, 0.06);
+  --scrollbar-thumb: rgba(0,0,0,0.12);
+  --tag-blocked: #ef4444;
+  --tag-dep-ready: #22c55e;
+  --tag-origin: #8b5cf6;
+  --tag-child: #06b6d4;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #09090b;
+    --card-bg: #18181b;
+    --card-border: rgba(255, 255, 255, 0.08);
+    --text-primary: #f4f4f5;
+    --text-secondary: #a1a1aa;
+    --text-muted: #52525b;
+    --input-bg: #27272a;
+    --input-border: rgba(255, 255, 255, 0.06);
+    --divider: rgba(255, 255, 255, 0.06);
+    --scrollbar-thumb: rgba(255,255,255,0.12);
+  }
+}
+
+html, body {
+  width: 100%; height: 100%;
+  background: var(--bg);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  color: var(--text-primary);
+  overflow: hidden;
+}
+
+.shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── Status bar ── */
+.status-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: var(--card-bg);
+  border-bottom: 1px solid var(--divider);
+  flex-shrink: 0;
+}
+.status-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--tag-pending);
+  flex-shrink: 0;
+}
+.status-dot--running {
+  background: var(--tag-running);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+.status-dot--idle { background: var(--tag-done); }
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.8); }
+}
+.status-text {
+  font-size: 12px;
+  color: var(--text-secondary);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.status-text strong { color: var(--text-primary); font-weight: 600; }
+
+/* ── Toolbar ── */
+.toolbar {
+  display: flex;
+  gap: 6px;
+  padding: 8px 16px 4px;
+  flex-shrink: 0;
+}
+.btn-outline {
+  padding: 4px 10px;
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--card-border);
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+.btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+.btn-outline--active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.btn-outline:disabled { opacity: 0.45; cursor: not-allowed; pointer-events: none; }
+
+/* ── Task list ── */
+.list-area {
+  flex: 1;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 4px 16px 8px;
+}
+.list-area::-webkit-scrollbar { width: 5px; }
+.list-area::-webkit-scrollbar-track { background: transparent; }
+.list-area::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 3px; }
+
+.section-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 12px 0 6px;
+}
+.section-title:first-child { margin-top: 4px; }
+
+/* ── Task row ── */
+.task-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 8px;
+  border-radius: 8px;
+  margin-bottom: 4px;
+  transition: background 0.12s;
+  cursor: default;
+}
+.task-row:hover { background: var(--input-bg); }
+/* 子任务缩进 */
+.task-row--child { margin-left: 18px; border-left: 2px solid var(--tag-child); padding-left: 10px; }
+
+.task-row-icon {
+  flex-shrink: 0;
+  padding-top: 2px;
+}
+
+.task-row-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.task-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+}
+
+.task-row--proposed {
+  border: 1.5px dashed var(--tag-review);
+  background: rgba(245, 158, 11, 0.04);
+  cursor: pointer;
+  position: relative;
+}
+.task-row--proposed::after {
+  content: "双击采纳";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 10px;
+  color: var(--tag-review);
+  opacity: 0;
+  transition: opacity 0.15s;
+  pointer-events: none;
+  background: rgba(245, 158, 11, 0.1);
+  padding: 2px 7px;
+  border-radius: 4px;
+}
+.task-row--proposed:hover::after {
+  opacity: 0.75;
+}
+@keyframes taskFlashAccept {
+  0%   { background: rgba(34, 197, 94, 0.25); }
+  100% { background: rgba(245, 158, 11, 0.04); }
+}
+.task-row--accept-flash {
+  animation: taskFlashAccept 0.4s ease-out;
+}
+
+/* ── Running task row highlight ── */
+.task-row--running {
+  background: rgba(59, 130, 246, 0.07);
+  border: 1.5px solid rgba(59, 130, 246, 0.25);
+}
+.task-row--running:hover { background: rgba(59, 130, 246, 0.1); }
+
+/* ── Section title: running ── */
+.section-title--running {
+  color: var(--tag-running);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.section-title--running::before {
+  content: "";
+  display: inline-block;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--tag-running);
+  animation: pulse 1.2s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+/* ── Section title: review ── */
+.section-title--review {
+  color: var(--tag-review);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.section-title--review::before {
+  content: "";
+  display: inline-block;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--tag-review);
+  flex-shrink: 0;
+}
+
+/* ── Review task row highlight ── */
+.task-row--review {
+  background: rgba(245, 158, 11, 0.07);
+  border: 1.5px solid rgba(245, 158, 11, 0.25);
+}
+.task-row--review:hover { background: rgba(245, 158, 11, 0.12); }
+
+/* ── Tab badge count ── */
+.panel-tab { text-align: center; white-space: nowrap; }
+
+.status-icon {
+  width: 14px; height: 14px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 700;
+  border: 1.5px solid var(--tag-pending);
+  cursor: pointer;
+  transition: all 0.12s;
+}
+.status-icon--done    { background: var(--tag-done);    border-color: var(--tag-done);    color: #fff; }
+.status-icon--running { background: var(--tag-running); border-color: var(--tag-running); color: #fff; }
+.status-icon--review  { background: var(--tag-review);  border-color: var(--tag-review);  color: #fff; }
+.status-icon--fail    { background: var(--tag-fail);    border-color: var(--tag-fail);    color: #fff; }
+.status-icon--proposed { border-color: var(--tag-review); border-style: dashed; color: var(--tag-review); }
+
+.task-title {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--text-primary);
+  width: 100%;
+  word-break: break-word;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.task-title--done { text-decoration: line-through; color: var(--text-muted); font-weight: 500; }
+
+.task-prompt {
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-secondary);
+  width: 100%;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+.task-prompt--done { color: var(--text-muted); }
+
+.task-file-link {
+  font-size: 10px;
+  color: var(--accent);
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--accent);
+  flex-shrink: 0;
+  white-space: nowrap;
+  transition: all 0.12s;
+  font-weight: 600;
+}
+.task-file-link:hover { background: var(--accent); color: #fff; }
+.task-file-link--feishu { color: #3370ff; border-color: #3370ff; }
+.task-file-link--feishu:hover { background: #3370ff; color: #fff; }
+.task-file-link--preview { color: #22c55e; border-color: #22c55e; }
+.task-file-link--preview:hover { background: #22c55e; color: #fff; }
+
+.task-edit-input {
+  width: 100%;
+  min-height: 4.5em;
+  padding: 6px 8px;
+  background: var(--input-bg);
+  border: 1.5px solid var(--accent);
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-primary);
+  outline: none;
+  font-family: inherit;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.task-actions {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+.task-row:hover .task-actions { opacity: 1; }
+.task-toolbar .task-actions { opacity: 1; }
+
+.task-act {
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--card-border);
+  background: transparent;
+  color: var(--text-muted);
+  font-family: inherit;
+  transition: all 0.12s;
+  white-space: nowrap;
+}
+.task-act:hover { border-color: var(--accent); color: var(--accent); }
+.task-act--danger:hover { border-color: var(--tag-fail); color: var(--tag-fail); }
+
+.proposal-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.proposal-btn {
+  padding: 2px 8px;
+  border-radius: 5px;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+  font-family: inherit;
+  transition: all 0.12s;
+}
+.proposal-btn--accept { background: var(--tag-done); color: #fff; }
+.proposal-btn--accept:hover { opacity: 0.85; }
+.proposal-btn--reject { background: transparent; color: var(--text-muted); border: 1px solid var(--card-border); }
+.proposal-btn--reject:hover { color: var(--tag-fail); border-color: var(--tag-fail); }
+
+.augment-box {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  width: 100%;
+  padding-top: 2px;
+}
+.augment-input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 8px;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: 6px;
+  font-size: 11px;
+  color: var(--text-primary);
+  outline: none;
+  font-family: inherit;
+}
+.augment-input:focus {
+  border-color: var(--accent);
+}
+.augment-btn {
+  padding: 5px 8px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid var(--card-border);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  white-space: nowrap;
+}
+.augment-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.augment-btn--primary {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+.augment-btn--primary:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+  color: #fff;
+}
+
+.priority-badge {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  background: var(--accent);
+  color: #fff;
+}
+.priority-badge--low { background: var(--text-muted); }
+
+/* ── 图谱标签 ── */
+.graph-tag {
+  font-size: 9px;
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.graph-tag--blocked { background: rgba(239, 68, 68, 0.12); color: var(--tag-blocked); border: 1px solid rgba(239, 68, 68, 0.25); }
+.graph-tag--ready { background: rgba(34, 197, 94, 0.12); color: var(--tag-dep-ready); border: 1px solid rgba(34, 197, 94, 0.25); }
+.graph-tag--origin { background: rgba(139, 92, 246, 0.12); color: var(--tag-origin); border: 1px solid rgba(139, 92, 246, 0.25); }
+.graph-tag--child { background: rgba(6, 182, 212, 0.12); color: var(--tag-child); border: 1px solid rgba(6, 182, 212, 0.25); }
+.graph-tag--dep { background: rgba(59, 130, 246, 0.12); color: var(--tag-running); border: 1px solid rgba(59, 130, 246, 0.25); }
+
+/* ── Add row ── */
+.add-row {
+  display: flex;
+  gap: 6px;
+  padding: 8px 16px 10px;
+  flex-shrink: 0;
+  border-top: 1px solid var(--divider);
+}
+.add-input {
+  flex: 1;
+  padding: 7px 10px;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--text-primary);
+  outline: none;
+  font-family: inherit;
+}
+.add-input:focus { border-color: var(--accent); }
+.add-input::placeholder { color: var(--text-muted); }
+.btn-add {
+  padding: 6px 14px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+.btn-add:hover { background: var(--accent-hover); }
+
+/* ── 待处理 / 已完成 Tab（配色与 --accent 一致）── */
+.panel-tabs {
+  display: flex;
+  gap: 0;
+  padding: 0 16px;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--divider);
+  background: var(--card-bg);
+}
+.panel-tab {
+  flex: 1;
+  padding: 10px 8px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  font-family: inherit;
+  transition: color 0.12s, border-color 0.12s;
+}
+.panel-tab:hover { color: var(--text-secondary); }
+.panel-tab--active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+/* ── 时间线（已完成按月份分组）── */
+.timeline-rail {
+  position: relative;
+  margin-left: 4px;
+  padding-left: 14px;
+  border-left: 2px solid var(--divider);
+}
+.timeline-month {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 0.02em;
+  margin: 12px 0 6px;
+  margin-left: -16px;
+  padding-left: 18px;
+  position: relative;
+}
+.timeline-month::before {
+  content: "";
+  position: absolute;
+  left: -5px;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  transform: translateY(-50%);
+  box-shadow: 0 0 0 2px var(--bg);
+}
+.timeline-month:first-child { margin-top: 4px; }
+
+.task-main {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-start;
+}
+.task-meta {
+  font-size: 10px;
+  color: var(--text-muted);
+  line-height: 1.35;
+  width: 100%;
+  word-break: break-word;
+}
+
+.empty-state {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+  padding: 32px 16px;
+}
+
+/* ── Drag-to-reorder ── */
+.drag-handle {
+  flex-shrink: 0;
+  width: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: var(--text-muted);
+  cursor: grab;
+  opacity: 0;
+  transition: opacity 0.12s;
+  user-select: none;
+  padding-top: 2px;
+  margin-left: -4px;
+}
+.task-row:hover .drag-handle { opacity: 0.6; }
+.drag-handle:hover { opacity: 1 !important; color: var(--text-secondary); }
+.drag-handle:active { cursor: grabbing; }
+
+.task-row[draggable="true"] { transition: background 0.12s, opacity 0.15s, transform 0.15s; }
+.task-row--dragging {
+  opacity: 0.4;
+  transform: scale(0.97);
+  background: var(--input-bg);
+}
+.task-row--drop-above {
+  box-shadow: 0 -2px 0 0 var(--accent);
+}
+.task-row--drop-below {
+  box-shadow: 0 2px 0 0 var(--accent);
+}
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="status-bar">
+    <div class="status-dot status-dot--idle" id="statusDot"></div>
+    <div class="status-text" id="statusText">空闲</div>
+  </div>
+
+  <div class="toolbar">
+    <button class="btn-outline" id="btnRun">执行</button>
+    <button class="btn-outline" id="btnPause">暂停</button>
+    <button class="btn-outline" id="btnStop">终止</button>
+    <button class="btn-outline" id="btnRefresh">刷新</button>
+    <button class="btn-outline" id="btnPropose" title="调用提议子代理（mr-krabs-proposal），需数十秒">生成建议</button>
+  </div>
+
+  <div class="panel-tabs" role="tablist" aria-label="任务分类">
+    <button type="button" class="panel-tab panel-tab--active" data-tab="active" id="tabActive" role="tab" aria-selected="true">执行中</button>
+    <button type="button" class="panel-tab" data-tab="inbox" id="tabInbox" role="tab" aria-selected="false">待处理</button>
+    <button type="button" class="panel-tab" data-tab="done" id="tabDone" role="tab" aria-selected="false">已完成</button>
+  </div>
+
+  <div class="list-area" id="taskList"></div>
+
+  <div class="add-row">
+    <input class="add-input" id="newTaskInput" placeholder="添加新任务…" />
+    <button class="btn-add" id="btnAdd">添加</button>
+  </div>
+</div>
+
+<script>
+const taskList = document.getElementById("taskList");
+const newTaskInput = document.getElementById("newTaskInput");
+const statusDot = document.getElementById("statusDot");
+
+/* ── Drag state ── */
+let _dragFromLine = null;
+let _dragOverRow = null;
+let _dragPosition = null; // "above" | "below"
+
+function clearDropIndicators() {
+  document.querySelectorAll(".task-row--drop-above, .task-row--drop-below").forEach(el => {
+    el.classList.remove("task-row--drop-above", "task-row--drop-below");
+  });
+}
+
+const statusText = document.getElementById("statusText");
+
+function escHtml(s) {
+  const d = document.createElement("span");
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function setStatus(state, task) {
+  statusDot.className = "status-dot";
+  if (state === "running") {
+    statusDot.classList.add("status-dot--running");
+    statusText.innerHTML = `<strong>正在执行：</strong>${escHtml(task || "…")}`;
+    document.getElementById("btnRun").classList.add("btn-outline--active");
+    document.getElementById("btnRun").textContent = "执行中…";
+  } else {
+    statusDot.classList.add("status-dot--idle");
+    statusText.textContent = "空闲";
+    document.getElementById("btnRun").classList.remove("btn-outline--active");
+    document.getElementById("btnRun").textContent = "执行";
+  }
+}
+
+async function restoreStatusAfterHint() {
+  const status = await window.taskAPI.getStatus();
+  if (status.state === "running") {
+    setStatus("running", status.task);
+  } else {
+    setStatus("idle");
+  }
+}
+
+function applyProposalResult(r) {
+  loadTasks();
+  if (r.ok && r.count > 0) {
+    statusText.innerHTML = `<strong>建议已就绪</strong> · ${escHtml(r.message || `已添加 ${r.count} 条`)} · 请查看「待处理」`;
+  } else if (r.ok && r.count === 0) {
+    statusText.innerHTML = `<strong>无新建议</strong> · ${escHtml(r.message || "")}`;
+  } else {
+    statusText.innerHTML = `<strong>生成失败</strong> · <span style="color:var(--tag-fail)">${escHtml(r.message || r.reason || "未知错误")}</span>`;
+  }
+  setTimeout(() => restoreStatusAfterHint(), 7000);
+}
+
+const TAB_KEY = "mrKrabsTaskPanelTab";
+const VALID_TABS = ["active", "inbox", "done"];
+
+function getPanelTab() {
+  try {
+    const v = sessionStorage.getItem(TAB_KEY);
+    if (VALID_TABS.includes(v)) return v;
+  } catch (_) {}
+  return "active";
+}
+
+function setPanelTab(tab) {
+  try {
+    sessionStorage.setItem(TAB_KEY, tab);
+  } catch (_) {}
+}
+
+function syncTabButtons(tab, tasks) {
+  const elActive = document.getElementById("tabActive");
+  const elInbox  = document.getElementById("tabInbox");
+  const elDone   = document.getElementById("tabDone");
+  elActive.classList.toggle("panel-tab--active", tab === "active");
+  elInbox.classList.toggle("panel-tab--active", tab === "inbox");
+  elDone.classList.toggle("panel-tab--active", tab === "done");
+  elActive.setAttribute("aria-selected", tab === "active" ? "true" : "false");
+  elInbox.setAttribute("aria-selected", tab === "inbox" ? "true" : "false");
+  elDone.setAttribute("aria-selected", tab === "done" ? "true" : "false");
+  // 角标：显示各 Tab 的任务数
+  if (tasks && tasks.length) {
+    const cntActive = tasks.filter(t => t.status === "running" || t.status === "review" || t.status === "pending").length;
+    const cntInbox  = tasks.filter(t => t.status === "proposed").length;
+    const cntDone   = tasks.filter(t => t.status === "done").length;
+    elActive.textContent = cntActive > 0 ? `执行中 (${cntActive})` : "执行中";
+    elInbox.textContent  = cntInbox > 0  ? `待处理 (${cntInbox})`  : "待处理";
+    elDone.textContent   = cntDone > 0   ? `已完成 (${cntDone})`   : "已完成";
+  }
+}
+
+function statusLabel(status) {
+  if (status === "pending") return "待执行";
+  if (status === "running") return "执行中";
+  if (status === "review") return "待审阅";
+  if (status === "proposed") return "建议";
+  if (status === "done") return "已完成";
+  return status;
+}
+
+function monthLabelFromYm(ym) {
+  if (!ym || ym === "unknown") return "未标注日期";
+  const [y, m] = ym.split("-");
+  if (!y || !m) return String(ym);
+  return `${y}年${parseInt(m, 10)}月`;
+}
+
+function filterByTab(tasks, tab) {
+  if (tab === "done")   return tasks.filter(t => t.status === "done");
+  if (tab === "inbox")  return tasks.filter(t => t.status === "proposed");
+  // tab === "active": running + review + pending
+  return tasks.filter(t => t.status === "running" || t.status === "review" || t.status === "pending");
+}
+
+const MAX_TITLE_CHARS = 15;
+
+/** 从正文抽约 15 字小标题（首行优先，尽量在标点处截断） */
+function deriveTaskTitle(raw, maxChars = MAX_TITLE_CHARS) {
+  const s = String(raw || "").replace(/\s+/g, " ").trim();
+  if (!s) return "（无内容）";
+  const firstLine = s.split(/\n/)[0].trim();
+  const cp = [...firstLine];
+  if (cp.length <= maxChars) return firstLine;
+  for (let i = Math.min(maxChars, cp.length); i >= 6; i--) {
+    const piece = cp.slice(0, i).join("");
+    if (/[，、：:；;\s,.]$/.test(piece)) return piece.trimEnd() + "…";
+  }
+  return cp.slice(0, maxChars).join("") + "…";
+}
+
+function showPromptUnderTitle(fullText, shortTitle) {
+  const t = String(fullText || "");
+  if (!t.trim()) return false;
+  if (/\n/.test(t)) return true;
+  if ([...t.trim()].length > MAX_TITLE_CHARS) return true;
+  const noEllipsis = shortTitle.replace(/…$/, "");
+  return t.trim() !== noEllipsis && t.trim() !== shortTitle;
+}
+
+function groupDoneByMonth(tasks) {
+  const sorted = [...tasks].sort((a, b) => {
+    const da = a.completedAt || "";
+    const db = b.completedAt || "";
+    if (da !== db) return db.localeCompare(da);
+    return (b.line || 0) - (a.line || 0);
+  });
+  const groups = [];
+  let curKey = null;
+  let curList = null;
+  for (const t of sorted) {
+    const key = t.completedAt ? t.completedAt.slice(0, 7) : "unknown";
+    if (key !== curKey) {
+      curKey = key;
+      curList = [];
+      groups.push({ ym: key, tasks: curList });
+    }
+    curList.push(t);
+  }
+  return groups;
+}
+
+/** 来源类型的中文标签 */
+function originLabel(origin) {
+  if (!origin || !origin.type) return null;
+  const map = {
+    "user": null,  // 用户手动创建不需要特别标注
+    "proposal": "AI 建议",
+    "follow-up": "后续任务",
+    "clipboard": "剪贴板",
+    "hotkey": "快捷键",
+    "os-sense": "系统感知",
+  };
+  return map[origin.type] || origin.type;
+}
+
+function buildTaskRow(t, tab) {
+  const row = document.createElement("div");
+  let rowClass = "task-row";
+  if (t.status === "proposed") rowClass += " task-row--proposed";
+  if (t.status === "running")  rowClass += " task-row--running";
+  if (t.status === "review")   rowClass += " task-row--review";
+  row.className = rowClass;
+  // 子任务缩进
+  if (t.parentId) row.classList.add("task-row--child");
+
+  // 双击采纳（仅 proposed 状态）
+  if (t.status === "proposed") {
+    row.addEventListener("dblclick", async (e) => {
+      // 避免在 button 或 input 上触发
+      if (e.target.tagName === "BUTTON" || e.target.tagName === "INPUT") return;
+      row.classList.add("task-row--accept-flash");
+      // 立刻在状态栏反映「正在执行」
+      setStatus("running", t.text.slice(0, 40) + (t.text.length > 40 ? "…" : ""));
+      setTimeout(async () => {
+        await window.taskAPI.acceptProposal(t.line);
+        loadTasks();
+      }, 200);
+    });
+  }
+
+
+  const iconWrap = document.createElement("div");
+  iconWrap.className = "task-row-icon";
+  const icon = document.createElement("div");
+  icon.className = "status-icon";
+  if (t.status === "done")         { icon.classList.add("status-icon--done");     icon.textContent = "✓"; }
+  else if (t.status === "running") { icon.classList.add("status-icon--running");  icon.textContent = "⟳"; }
+  else if (t.status === "review")  { icon.classList.add("status-icon--review");   icon.textContent = "!"; }
+  else if (t.status === "proposed"){ icon.classList.add("status-icon--proposed"); icon.textContent = "?"; }
+
+  if (t.status !== "proposed" && t.status !== "running") {
+    icon.addEventListener("click", async () => {
+      const next = t.status === "done" ? "pending" : "done";
+      await window.taskAPI.updateStatus(t.line, next);
+      loadTasks();
+    });
+  }
+  iconWrap.appendChild(icon);
+  row.appendChild(iconWrap);
+
+  /* ── Drag handle (active tab, pending tasks only) ── */
+  if (tab === "active" && t.status === "pending") {
+    const handle = document.createElement("div");
+    handle.className = "drag-handle";
+    handle.textContent = "⠿";
+    handle.title = "拖拽排序";
+    row.draggable = true;
+    row.dataset.line = t.line;
+
+    row.addEventListener("dragstart", (e) => {
+      _dragFromLine = Number(row.dataset.line);
+      row.classList.add("task-row--dragging");
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", String(t.line));
+    });
+    row.addEventListener("dragend", () => {
+      row.classList.remove("task-row--dragging");
+      clearDropIndicators();
+      _dragFromLine = null;
+      _dragOverRow = null;
+      _dragPosition = null;
+    });
+    row.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      if (_dragFromLine === null) return;
+      const targetLine = Number(row.dataset.line);
+      if (targetLine === _dragFromLine) return;
+      const rect = row.getBoundingClientRect();
+      const midY = rect.top + rect.height / 2;
+      const pos = e.clientY < midY ? "above" : "below";
+      if (_dragOverRow !== row || _dragPosition !== pos) {
+        clearDropIndicators();
+        row.classList.add(pos === "above" ? "task-row--drop-above" : "task-row--drop-below");
+        _dragOverRow = row;
+        _dragPosition = pos;
+      }
+    });
+    row.addEventListener("dragleave", (e) => {
+      if (!row.contains(e.relatedTarget)) {
+        row.classList.remove("task-row--drop-above", "task-row--drop-below");
+      }
+    });
+    row.addEventListener("drop", async (e) => {
+      e.preventDefault();
+      clearDropIndicators();
+      if (_dragFromLine === null) return;
+      const toLine = Number(row.dataset.line);
+      const fromLine = _dragFromLine;
+      _dragFromLine = null;
+      if (fromLine === toLine) return;
+      await window.taskAPI.moveTask(fromLine, toLine);
+      loadTasks();
+    });
+
+    // Insert handle before iconWrap (first child)
+    row.insertBefore(handle, iconWrap);
+  }
+
+  const content = document.createElement("div");
+  content.className = "task-row-content";
+
+  const main = document.createElement("div");
+  main.className = "task-main";
+
+  const shortTitle = deriveTaskTitle(t.text);
+  const doneCls = t.status === "done";
+
+  const titleEl = document.createElement("div");
+  titleEl.className = "task-title" + (doneCls ? " task-title--done" : "");
+  titleEl.textContent = shortTitle;
+  titleEl.title = t.text;
+
+  const openEdit = () => {
+    if (t.status === "running") return;
+    const ta = document.createElement("textarea");
+    ta.className = "task-edit-input";
+    ta.value = t.text;
+    ta.title = "⌘↩ / Ctrl+↩ 保存，Esc 取消";
+    ta.rows = Math.min(8, Math.max(3, String(t.text).split("\n").length + 1));
+    content.replaceChild(ta, main);
+    ta.focus();
+    ta.setSelectionRange(ta.value.length, ta.value.length);
+    const save = async () => {
+      const v = ta.value.trim();
+      if (v && v !== t.text) await window.taskAPI.editTask(t.line, v);
+      loadTasks();
+    };
+    ta.addEventListener("blur", save);
+    ta.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); save(); }
+      if (e.key === "Escape") loadTasks();
+    });
+  };
+
+  titleEl.addEventListener("dblclick", openEdit);
+  main.appendChild(titleEl);
+
+  if (showPromptUnderTitle(t.text, shortTitle)) {
+    const promptEl = document.createElement("div");
+    promptEl.className = "task-prompt" + (doneCls ? " task-prompt--done" : "");
+    promptEl.textContent = t.text;
+    promptEl.addEventListener("dblclick", openEdit);
+    main.appendChild(promptEl);
+  }
+
+  const meta = document.createElement("div");
+  meta.className = "task-meta";
+  if (tab === "done") {
+    const metaParts = [];
+    if (t.completedAt) metaParts.push(`完成于 ${t.completedAt}`);
+    if (t.createdAt) metaParts.push(`创建于 ${t.createdAt}`);
+    if (t.proposedAt) metaParts.push(`建议于 ${t.proposedAt}`);
+    meta.textContent = metaParts.join(" · ") || "已完成（任务文件中未写完成日期）";
+  } else {
+    const metaParts = [statusLabel(t.status)];
+    if (t.section) metaParts.push(t.section);
+    if (t.createdAt) metaParts.push(`创建于 ${t.createdAt}`);
+    if (t.proposedAt) metaParts.push(`建议于 ${t.proposedAt}`);
+    meta.textContent = metaParts.join(" · ");
+  }
+  main.appendChild(meta);
+
+  content.appendChild(main);
+
+  const toolbar = document.createElement("div");
+  toolbar.className = "task-toolbar";
+
+  if (t.priority !== "normal") {
+    const badge = document.createElement("span");
+    badge.className = "priority-badge" + (t.priority === "low" ? " priority-badge--low" : "");
+    badge.textContent = t.priority === "high" ? "高" : "低";
+    toolbar.appendChild(badge);
+  }
+
+  // ── 图谱标签：来源、依赖状态、子任务数 ──
+  if (t.origin) {
+    const label = originLabel(t.origin);
+    if (label) {
+      const tag = document.createElement("span");
+      tag.className = "graph-tag graph-tag--origin";
+      tag.textContent = label;
+      if (t.origin.source) tag.title = t.origin.source;
+      toolbar.appendChild(tag);
+    }
+  }
+
+  if (t.dependsOn && t.dependsOn.length > 0) {
+    const tag = document.createElement("span");
+    if (t.depsReady === false) {
+      tag.className = "graph-tag graph-tag--blocked";
+      tag.textContent = `⛔ 依赖未就绪 (${t.dependsOn.length})`;
+    } else {
+      tag.className = "graph-tag graph-tag--ready";
+      tag.textContent = `✓ 依赖就绪`;
+    }
+    toolbar.appendChild(tag);
+  }
+
+  if (t.childIds && t.childIds.length > 0) {
+    const tag = document.createElement("span");
+    tag.className = "graph-tag graph-tag--child";
+    tag.textContent = `${t.childIds.length} 个子任务`;
+    toolbar.appendChild(tag);
+  }
+
+  if (t.file) {
+    const link = document.createElement("span");
+    link.className = "task-file-link";
+    if (t.file.startsWith("http")) {
+      link.textContent = "飞书";
+      link.classList.add("task-file-link--feishu");
+    } else if (t.file.endsWith(".html") || t.file.endsWith(".css")) {
+      link.textContent = "预览";
+      link.classList.add("task-file-link--preview");
+    } else {
+      link.textContent = "查看";
+    }
+    link.title = t.file;
+    link.addEventListener("click", (e) => {
+      e.stopPropagation();
+      window.taskAPI.openFile(t.file);
+    });
+    toolbar.appendChild(link);
+  }
+
+  if (t.status === "proposed") {
+    const pa = document.createElement("div");
+    pa.className = "proposal-actions";
+    const btnY = document.createElement("button");
+    btnY.className = "proposal-btn proposal-btn--accept";
+    btnY.textContent = "采纳";
+    btnY.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      await window.taskAPI.acceptProposal(t.line);
+      loadTasks();
+    });
+    pa.appendChild(btnY);
+    const btnN = document.createElement("button");
+    btnN.className = "proposal-btn proposal-btn--reject";
+    btnN.textContent = "忽略";
+    btnN.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      await window.taskAPI.rejectProposal(t.line);
+      loadTasks();
+    });
+    pa.appendChild(btnN);
+    toolbar.appendChild(pa);
+  } else if (t.status !== "running") {
+    const actions = document.createElement("div");
+    actions.className = "task-actions";
+    if (t.status === "pending") {
+      const btnA = document.createElement("button");
+      btnA.className = "task-act";
+      btnA.textContent = "补充";
+      btnA.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (content.querySelector(".augment-box")) return;
+
+        const box = document.createElement("div");
+        box.className = "augment-box";
+
+        const input = document.createElement("input");
+        input.className = "augment-input";
+        input.placeholder = "补充任务背景、约束或资料链接…";
+
+        const submit = document.createElement("button");
+        submit.className = "augment-btn augment-btn--primary";
+        submit.textContent = "补充并执行";
+
+        const cancel = document.createElement("button");
+        cancel.className = "augment-btn";
+        cancel.textContent = "取消";
+
+        const closeBox = () => box.remove();
+        cancel.addEventListener("click", (ev) => {
+          ev.stopPropagation();
+          closeBox();
+        });
+
+        submit.addEventListener("click", async (ev) => {
+          ev.stopPropagation();
+          const note = input.value.trim();
+          if (!note) return;
+          await window.taskAPI.appendToTask(t.line, note);
+          await window.taskAPI.updateStatus(t.line, "pending");
+          window.taskAPI.runNow();
+          loadTasks();
+        });
+
+        input.addEventListener("keydown", async (ev) => {
+          if (ev.key === "Escape") {
+            ev.preventDefault();
+            closeBox();
+          }
+          if (ev.key === "Enter") {
+            ev.preventDefault();
+            submit.click();
+          }
+        });
+
+        box.appendChild(input);
+        box.appendChild(submit);
+        box.appendChild(cancel);
+        content.appendChild(box);
+        input.focus();
+      });
+      actions.appendChild(btnA);
+    }
+    const btnD = document.createElement("button");
+    btnD.className = "task-act task-act--danger";
+    btnD.textContent = "删除";
+    btnD.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      await window.taskAPI.deleteTask(t.line);
+      loadTasks();
+    });
+    actions.appendChild(btnD);
+    toolbar.appendChild(actions);
+  }
+
+  if (toolbar.childNodes.length) content.appendChild(toolbar);
+  row.appendChild(content);
+
+  return row;
+}
+
+async function loadTasks() {
+  const tasks = await window.taskAPI.getTasks();
+  const tab = getPanelTab();
+  syncTabButtons(tab, tasks);
+  taskList.innerHTML = "";
+
+  if (!tasks.length) {
+    taskList.innerHTML = '<div class="empty-state">暂无任务</div>';
+    return;
+  }
+
+  const filtered = filterByTab(tasks, tab);
+  if (!filtered.length) {
+    const labelMap = { active: "执行中", inbox: "待处理", done: "已完成" };
+    taskList.innerHTML = `<div class="empty-state">${labelMap[tab] || tab} · 暂无</div>`;
+    return;
+  }
+
+  /* ── Tab: 执行中（active） ── */
+  if (tab === "active") {
+    // 按状态分组：review（需要你看）> running（正在跑）> pending（排队中）
+    const reviewTasks  = filtered.filter(t => t.status === "review");
+    const runningTasks = filtered.filter(t => t.status === "running");
+    const pendingTasks = filtered.filter(t => t.status === "pending");
+
+    if (reviewTasks.length > 0) {
+      const sec = document.createElement("div");
+      sec.className = "section-title section-title--review";
+      sec.textContent = `待审阅 (${reviewTasks.length})`;
+      taskList.appendChild(sec);
+      for (const t of reviewTasks) {
+        taskList.appendChild(buildTaskRow(t, tab));
+      }
+    }
+
+    if (runningTasks.length > 0) {
+      const sec = document.createElement("div");
+      sec.className = "section-title section-title--running";
+      sec.textContent = `正在执行 (${runningTasks.length})`;
+      taskList.appendChild(sec);
+      for (const t of runningTasks) {
+        taskList.appendChild(buildTaskRow(t, tab));
+      }
+    }
+
+    if (pendingTasks.length > 0) {
+      const sec = document.createElement("div");
+      sec.className = "section-title";
+      sec.textContent = `排队中 (${pendingTasks.length})`;
+      taskList.appendChild(sec);
+      for (const t of pendingTasks) {
+        taskList.appendChild(buildTaskRow(t, tab));
+      }
+    }
+    return;
+  }
+
+  /* ── Tab: 待处理（inbox） — AI proposed ── */
+  if (tab === "inbox") {
+    for (const t of filtered) {
+      taskList.appendChild(buildTaskRow(t, tab));
+    }
+    return;
+  }
+
+  /* ── Tab: 已完成（done） ── */
+  const rail = document.createElement("div");
+  rail.className = "timeline-rail";
+  for (const { ym, tasks: groupTasks } of groupDoneByMonth(filtered)) {
+    const mh = document.createElement("div");
+    mh.className = "timeline-month";
+    mh.textContent = monthLabelFromYm(ym);
+    rail.appendChild(mh);
+    for (const t of groupTasks) {
+      rail.appendChild(buildTaskRow(t, tab));
+    }
+  }
+  taskList.appendChild(rail);
+}
+
+document.querySelectorAll(".panel-tab").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const tab = btn.getAttribute("data-tab");
+    if (!VALID_TABS.includes(tab)) return;
+    setPanelTab(tab);
+    loadTasks();
+  });
+});
+
+// ── Toolbar ──
+document.getElementById("btnRun").addEventListener("click", () => {
+  setStatus("running", "启动中…");
+  window.taskAPI.runNow();
+});
+document.getElementById("btnPause").addEventListener("click", () => {
+  window.taskAPI.pauseQueue();
+  statusText.innerHTML = "<strong>已暂停</strong>";
+  document.getElementById("btnRun").classList.remove("btn-outline--active");
+  document.getElementById("btnRun").textContent = "执行";
+});
+document.getElementById("btnStop").addEventListener("click", () => {
+  window.taskAPI.stopQueue();
+  setStatus("idle");
+});
+document.getElementById("btnRefresh").addEventListener("click", () => loadTasks());
+
+document.getElementById("btnPropose").addEventListener("click", async () => {
+  const btn = document.getElementById("btnPropose");
+  btn.disabled = true;
+  statusDot.className = "status-dot status-dot--running";
+  statusText.innerHTML = "<strong>生成建议中…</strong>（提议子代理，通常需 30～90 秒）";
+  try {
+    const r = await window.taskAPI.triggerProposals();
+    applyProposalResult(r);
+  } catch (e) {
+    statusText.innerHTML = `<strong>生成失败</strong> · <span style="color:var(--tag-fail)">${escHtml(e.message || String(e))}</span>`;
+    setTimeout(() => restoreStatusAfterHint(), 7000);
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+// ── Add task ──
+document.getElementById("btnAdd").addEventListener("click", async () => {
+  const text = newTaskInput.value.trim();
+  if (!text) return;
+  await window.taskAPI.addTask(text, null);
+  newTaskInput.value = "";
+  loadTasks();
+});
+newTaskInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") { e.preventDefault(); document.getElementById("btnAdd").click(); }
+});
+
+// ── IPC events ──
+window.taskAPI.onRefresh(() => loadTasks());
+window.taskAPI.onStatus((data) => setStatus(data.state, data.task));
+window.taskAPI.onLog(() => loadTasks());
+window.taskAPI.onOutput(() => {});
+window.taskAPI.onProposalsDone((r) => applyProposalResult(r));
+
+// ── Init ──
+(async () => {
+  const status = await window.taskAPI.getStatus();
+  setStatus(status.state === "running" ? "running" : "idle", status.task);
+  syncTabButtons(getPanelTab());
+  loadTasks();
+})();
+</script>
+</body>
+</html>

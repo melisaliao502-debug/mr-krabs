@@ -1,0 +1,15 @@
+{
+  "name": "mr-krabs-terminal-focus",
+  "displayName": "Mr. Krabs Terminal Focus",
+  "description": "Enables Mr. Krabs desktop pet to focus the correct terminal tab via URI",
+  "version": "0.1.0",
+  "publisher": "mr-krabs",
+  "engines": {
+    "vscode": "^1.70.0"
+  },
+  "activationEvents": [
+    "onUri"
+  ],
+  "main": "./extension.js",
+  "contributes": {}
+}
