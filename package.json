@@ -1,6 +1,6 @@
 {
   "name": "mr-krabs",
-  "version": "0.6.11",
+  "version": "0.6.12",
   "description": "A desktop pet that reacts to your Claude Code sessions in real-time.",
   "main": "src/main.js",
   "scripts": {
